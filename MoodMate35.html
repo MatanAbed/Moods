@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MoodMate - איך אתה מרגיש היום?</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <style>
+    body {
+      background: linear-gradient(to bottom right, #f3e8ff, #d1e6ff);
+      font-family: 'Assistant', sans-serif;
+      position: relative;
+      overflow: hidden;
+      min-height: 100vh;
+      overflow-y: auto;
+    }
+    canvas#particles {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -1;
+      opacity: 0.5;
+    }
+    .mood-button {
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .mood-button:hover {
+      transform: scale(1.1);
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+    }
+    .mood-button:focus {
+      outline: 2px solid #8B5A2B;
+      outline-offset: 2px;
+    }
+    .ripple {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.4);
+      transform: scale(0);
+      animation: ripple 0.6s linear;
+      pointer-events: none;
+    }
+    @keyframes ripple {
+      to {
+        transform: scale(4);
+        opacity: 0;
+      }
+    }
+    #mood-grid {
+      background: rgba(30, 30, 47, 0.9);
+      padding: 1rem;
+      border-radius: 1rem;
+      backdrop-filter: blur(5px);
+    }
+    #mood-screen {
+      background: linear-gradient(to bottom right, #2a2a4a, #1e1e2f);
+      padding: 2rem;
+      border-radius: 1.5rem;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+    }
+    #diary-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      width: 100%;
+      padding: 2rem;
+      position: relative;
+    }
+    #diary-cover {
+      background: url('https://images.unsplash.com/photo-1503803548695-c2a7b4a5b875?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80') no-repeat center center/cover;
+      border: 5px solid #E8B4BC;
+      border-radius: 20px;
+      width: 80%;
+      max-width: 900px;
+      height: 600px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.2), inset 5px 5px 10px rgba(255, 255, 255, 0.2);
+      position: relative;
+      transition: transform 1.2s ease, height 1.2s ease, box-shadow 0.3s ease;
+      border-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAJUlEQVQYV2NgYGBg+M7AwMBgYGBgYGBgYGBgYGBgAABl+AcaB9kL7gAAAABJRU5ErkJggg==') 4 stretch;
+      border-image-width: 4px;
+    }
+    #diary-cover:hover {
+      box-shadow: 5px 5px 20px rgba(0, 0, 0, 0.3), inset 5px 5px 10px rgba(255, 255, 255, 0.3);
+    }
+    #diary-cover:focus {
+      outline: 2px solid #8B5A2B;
+      outline-offset: 2px;
+    }
+    #diary-cover.closed {
+      transform: translateY(0);
+      height: 600px;
+    }
+    #diary-cover.open {
+      transform: translateY(-100%);
+      height: 0;
+      overflow: hidden;
+    }
+    #diary-cover h2 {
+      font-size: 2.5rem;
+      color: #5C4033;
+      text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.8);
+      font-weight: 700;
+      text-align: center;
+      position: absolute;
+      top: 20%;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+    #diary-content {
+      display: none;
+      width: 80%;
+      max-width: 900px;
+      height: 600px;
+      background: url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?ixlib=rb-4.0.3&auto=format&fit=crop&w=1350&q=80') no-repeat center center/cover;
+      border: 5px solid #E8B4BC;
+      border-radius: 20px;
+      padding: 2rem;
+      box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.2);
+      position: relative;
+      opacity: 1;
+      transform: translateX(0);
+    }
+    #diary-content h3 {
+      color: #EDE4D3;
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+      text-align: center;
+      font-family: 'Assistant', sans-serif;
+      font-weight: 700;
+    }
+    #diary-content textarea {
+      width: 100%;
+      height: calc(100% - 4rem);
+      background: repeating-linear-gradient(
+        transparent,
+        transparent 24px,
+        #F5F0E8 24px,
+        #F5F0E8 25px
+      );
+      line-height: 25px;
+      border: none;
+      resize: none;
+      padding: 6px 1rem 0 1rem;
+      font-size: 1rem;
+      color: #5C4033;
+      font-family: 'Assistant', sans-serif;
+      text-align: right;
+      direction: rtl;
+      box-sizing: border-box;
+      vertical-align: top;
+    }
+    #diary-content textarea:focus {
+      outline: none;
+      background: repeating-linear-gradient(
+        transparent,
+        transparent 24px,
+        #E8E0D5 24px,
+        #E8E0D5 25px
+      );
+    }
+    #save-message {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 245, 230, 0.9);
+      color: #8B5A2B;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      font-size: 1rem;
+      font-family: 'Assistant', sans-serif;
+      display: none;
+      z-index: 10;
+    }
+    #save-message.show {
+      display: block;
+      animation: fadeInOut 2s ease-in-out;
+    }
+    @keyframes fadeInOut {
+      0% { opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    .diary-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    .diary-buttons button {
+      background: linear-gradient(to bottom, #F5E6E8, #FFF8E1);
+      color: #8B5A2B;
+      border: 1px solid #E8B4BC;
+      padding: 0.5rem 1.5rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      font-size: 1rem;
+      font-family: 'Assistant', sans-serif;
+      transition: background 0.3s ease, transform 0.1s ease, box-shadow 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .diary-buttons button:hover {
+      background: linear-gradient(to bottom, #FFF8E1, #F5E6E8);
+      transform: scale(1.05);
+      box-shadow: 0 0 10px rgba(139, 90, 43, 0.5);
+    }
+    .diary-buttons button:active {
+      transform: scale(0.95);
+    }
+    .diary-buttons button:focus {
+      outline: 2px solid #8B5A2B;
+      outline-offset: 2px;
+    }
+    .diary-buttons button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      border: 1px solid #D3D3D3;
+    }
+    #date-nav {
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    #date-nav label {
+      color: #EDE4D3;
+      font-size: 1rem;
+      font-family: 'Assistant', sans-serif;
+      font-weight: 700;
+    }
+    #date-nav input[type="date"] {
+      background: linear-gradient(to bottom, #FFF8E1, #F5E6E8);
+      color: #5C4033;
+      border: 1px solid #E8B4BC;
+      border-radius: 0.5rem;
+      padding: 0.5rem;
+      font-family: 'Assistant', sans-serif;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.3s ease, box-shadow 0.3s ease;
+    }
+    #date-nav input[type="date"]:hover {
+      background: linear-gradient(to bottom, #F5E6E8, #FFF8E1);
+      box-shadow: 0 0 10px rgba(139, 90, 43, 0.5);
+    }
+    #date-nav input[type="date"]:focus {
+      outline: 2px solid #8B5A2B;
+      outline-offset: 2px;
+    }
+    .fade-in {
+      animation: fadeIn 0.5s ease-in-out;
+    }
+    .fade-out {
+      animation: fadeOut 0.5s ease-in-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes fadeOut {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
+    .slide-left-out {
+      animation: slideLeftOut 0.5s ease-in-out forwards;
+    }
+    .slide-right-in {
+      animation: slideRightIn 0.5s ease-in-out forwards;
+    }
+    .slide-right-out {
+      animation: slideRightOut 0.5s ease-in-out forwards;
+    }
+    .slide-left-in {
+      animation: slideLeftIn 0.5s ease-in-out forwards;
+    }
+    @keyframes slideLeftOut {
+      from { transform: translateX(0); opacity: 1; }
+      to { transform: translateX(-100%); opacity: 0; }
+    }
+    @keyframes slideRightIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideRightOut {
+      from { transform: translateX(0); opacity: 1; }
+      to { transform: translateX(100%); opacity: 0; }
+    }
+    @keyframes slideLeftIn {
+      from { transform: translateX(-100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    .typing {
+      display: inline-block;
+      white-space: nowrap;
+      overflow: hidden;
+      border-left: 3px solid #000;
+      animation: typing 3s steps(40, end), blink 0.75s step-end infinite;
+    }
+    @keyframes typing {
+      from { width: 0; }
+      to { width: 100%; }
+    }
+    @keyframes blink {
+      from, to { border-color: transparent; }
+      50% { border-color: black; }
+    }
+    .hidden {
+      display: none !important;
+    }
+    #diary-instruction {
+      position: absolute;
+      top: 10%;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #8B5A2B;
+      font-size: 1.5rem;
+      font-weight: 700;
+      font-family: 'Assistant', sans-serif;
+      text-shadow: 1px 1px 3px rgba(255, 255, 255, 0.5);
+      background: rgba(255, 245, 230, 0.8);
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      z-index: 5;
+    }
+    #diary-arrow {
+      position: absolute;
+      top: 15%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 40px;
+      height: 40px;
+      fill: #8B5A2B;
+      z-index: 5;
+      animation: bounce 1.5s infinite;
+    }
+    @keyframes bounce {
+      0%, 100% {
+        transform: translate(-50%, 0);
+      }
+      50% {
+        transform: translate(-50%, 10px);
+      }
+    }
+    #brand-icon {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      background-color: rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(5px);
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      transition: all 0.3s ease;
+      z-index: 1000;
+      color: #2D3748; /* כחול-אפור כהה לטקסט "MoodMate" */
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      font-family: 'Assistant', sans-serif;
+    }
+    #brand-icon .material-icons {
+      font-size: 24px;
+      margin-left: 0.5rem;
+      color: #6B7280; /* כחול-אפור עדין כברירת מחדל */
+      transition: color 0.3s ease;
+    }
+    /* התאמת צבע האייקון לפי מצב רוח עם גוונים מעט כהים יותר */
+    body.happy #brand-icon .material-icons {
+      color: #D4A017; /* גוון כהה יותר של #FFE5A3 */
+    }
+    body.sad #brand-icon .material-icons {
+      color: #3F528E; /* גוון כהה יותר של #8B9ED9 */
+    }
+    body.angry #brand-icon .material-icons {
+      color: #B71C1C; /* גוון כהה יותר של #F68B8B */
+    }
+    body.calm #brand-icon .material-icons {
+      color: #698F3E; /* גוון כהה יותר של #C6D4B2 */
+    }
+    body.stressed #brand-icon .material-icons {
+      color: #C05621; /* גוון כהה יותר של #F7B683 */
+    }
+    body.lonely #brand-icon .material-icons {
+      color: #7F8295; /* גוון כהה יותר של #D1D1DC */
+    }
+    body.tired #brand-icon .material-icons {
+      color: #4B5563; /* גוון כהה יותר של #A3A8B5 */
+    }
+    body.excited #brand-icon .material-icons {
+      color: #B83280; /* גוון כהה יותר של #F396C1 */
+    }
+    body.confident #brand-icon .material-icons {
+      color: #2F855A; /* גוון כהה יותר של #8CC4A2 */
+    }
+    body.scared #brand-icon .material-icons {
+      color: #5A3FC5; /* גוון כהה יותר של #A88EF5 */
+    }
+    @media (max-width: 640px) {
+      #brand-icon {
+        top: 0.5rem;
+        right: 0.5rem;
+        font-size: 0.9rem;
+        padding: 0.3rem 0.7rem;
+      }
+      #brand-icon .material-icons {
+        font-size: 20px;
+      }
+    }
+  </style>
+</head>
+<body class="text-white flex flex-col items-center justify-center min-h-screen p-6">
+  <canvas id="particles"></canvas>
+  <div id="brand-icon">
+    <span class="material-icons">mood</span>
+    MoodMate
+  </div>
+
+  <div id="home-screen">
+    <h1 id="title" class="text-4xl md:text-5xl font-bold text-gray-800 mb-4 typing">איך אתה מרגיש היום?</h1>
+    <p class="text-lg text-gray-800 mb-10">בחר מצב רוח כדי להתחיל</p>
+    <div id="mood-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-6"></div>
+    <button onclick="goToDiary()" class="mt-6 bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-xl focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-indigo-700" tabindex="0" aria-label="מעבר ליומן האישי">ליומן שלי</button>
+  </div>
+
+  <div id="mood-screen" class="hidden">
+    <div class="flex flex-col items-center space-y-6">
+      <h2 id="selected-mood" class="text-3xl font-bold"></h2>
+      <p id="daily-paragraph" class="text-lg text-gray-300 max-w-xl mx-auto leading-loose whitespace-pre-line"></p>
+      <h3 id="daily-task-title" class="text-2xl font-semibold mt-6">משימה יומית</h3>
+      <p id="daily-task" class="text-base text-gray-200 max-w-md mx-auto whitespace-pre-line"></p>
+      <div class="flex gap-4 mt-6">
+        <button onclick="goBack()" class="bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-xl focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-gray-700" tabindex="0" aria-label="חזור לבחירת מצב רוח">בחר שוב</button>
+        <button onclick="toggleGraph()" class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-xl focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-indigo-700" tabindex="0" aria-label="הצג גרף רגשות">גרף רגשות</button>
+        <button onclick="goToDiary()" class="bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-xl focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-indigo-700" tabindex="0" aria-label="מעבר ליומן האישי">ליומן שלי</button>
+      </div>
+    </div>
+    <div id="graph-section" class="hidden mt-8 w-full max-w-3xl">
+      <div class="flex justify-center gap-4 mb-4">
+        <button onclick="setGraphRange('week')" class="bg-blue-700 px-3 py-1 rounded-lg focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-blue-800" tabindex="0" aria-label="הצג גרף לשבוע האחרון">שבוע אחרון</button>
+        <button onclick="setGraphRange('month')" class="bg-blue-700 px-3 py-1 rounded-lg focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-blue-800" tabindex="0" aria-label="הצג גרף לחודש האחרון">חודש אחרון</button>
+        <button onclick="setGraphRange('all')" class="bg-blue-700 px-3 py-1 rounded-lg focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-blue-800" tabindex="0" aria-label="הצג גרף לכל הזמנים">כל הזמנים</button>
+      </div>
+      <p id="average-label" class="mb-2 text-gray-300"></p>
+      <canvas id="moodChart"></canvas>
+    </div>
+  </div>
+
+  <div id="diary-screen" class="hidden">
+    <div id="diary-instruction">לחץ כאן כדי לפתוח את היומן שלך</div>
+    <svg id="diary-arrow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+      <path d="M12 21l-8-8h16l-8 8zm0-18l8 8H4l8-8z"/>
+    </svg>
+    <div id="diary-cover" class="closed" tabindex="0" aria-label="פתח את היומן האישי">
+      <h2>כתוב את ליבך, והוא ימצא את השקט</h2>
+    </div>
+    <div id="save-message">היומן נשמר!</div>
+    <div id="diary-content">
+      <h3 id="diary-date"></h3>
+      <textarea id="diary-textarea" placeholder="כתוב כאן את מחשבותיך..." aria-label="כתוב את מחשבותיך עבור התאריך הנוכחי"></textarea>
+    </div>
+    <div id="date-nav">
+      <label for="date-picker">בחר תאריך:</label>
+      <input type="date" id="date-picker" aria-label="בחר תאריך כדי לנווט ביומן">
+    </div>
+    <div class="diary-buttons">
+      <button onclick="prevPage()" id="prev-page-btn" tabindex="0" aria-label="עבור לדף הקודם ביומן">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-right" viewBox="0 0 16 16">
+          <path fill-rule="evenodd" d="M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8z"/>
+        </svg>
+        דף קודם
+      </button>
+      <button onclick="savePage()" id="save-page-btn" tabindex="0" aria-label="שמור את התוכן של הדף הנוכחי ביומן">
+        שמור
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-save" viewBox="0 0 16 16">
+          <path d="M2 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H9.5a1 1 0 0 0-1 1v7.764l2.057-2.056a.5.5 0 0 1 .707.707l-3 3a.5.5 0 0 1-.707 0l-3-3a.5.5 0 1 1 .707-.707L7.5 9.764V2a.5.5 0 0 1 .5-.5H14a.5.5 0 0 1 .5.5v11a.5.5 0 0 1-.5.5H2a.5.5 0 0 1-.5.5V2a.5.5 0 0 1 .5-.5h2.5a.5.5 0 0 1 0 1H2z"/>
+        </svg>
+      </button>
+      <button onclick="nextPage()" id="next-page-btn" tabindex="0" aria-label="עבור לדף הבא ביומן">
+        דף הבא
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-left" viewBox="0 0 16 16">
+          <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l-3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
+        </svg>
+      </button>
+      <button onclick="addYear()" id="add-year-btn" class="hidden" tabindex="0" aria-label="הוסף שנה נוספת ליומן">
+        הוסף שנה נוספת
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-plus-circle" viewBox="0 0 16 16">
+          <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 0 0 8 0a8 8 0 0 0 0 16z"/>
+          <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
+        </svg>
+      </button>
+    </div>
+    <button onclick="goBackFromDiary()" class="mt-4 bg-gray-600 hover:bg-gray-500 px-4 py-2 rounded-xl focus:outline focus:outline-2 focus:outline-offset-2 focus:outline-gray-700" tabindex="0" aria-label="חזור למסך הראשי">חזור</button>
+  </div>
+
+  <script>
+    const moods = [
+      { emoji: "😢", label: "עצוב" },
+      { emoji: "😄", label: "שמח" },
+      { emoji: "😠", label: "כועס" },
+      { emoji: "😌", label: "רגוע" },
+      { emoji: "😰", label: "לחץ" },
+      { emoji: "🤍", label: "בדידות" },
+      { emoji: "😴", label: "עייפות" },
+      { emoji: "🎉", label: "התרגשות" },
+      { emoji: "🛡️", label: "ביטחון" },
+      { emoji: "😨", label: "פחד" }
+    ];
+
+    const moodColors = {
+      "עצוב": "#4B5EAA",
+      "שמח": "#FFD166",
+      "כועס": "#EF4444",
+      "רגוע": "#A3BE8C",
+      "לחץ": "#F28C38",
+      "בדידות": "#B4B4C1",
+      "עייפות": "#6B7280",
+      "התרגשות": "#EC4899",
+      "ביטחון": "#4C9F70",
+      "פחד": "#7C3AED"
+    };
+
+    const moodGrid = document.getElementById('mood-grid');
+    const homeScreen = document.getElementById('home-screen');
+    const moodScreen = document.getElementById('mood-screen');
+    const diaryScreen = document.getElementById('diary-screen');
+    const diaryCover = document.getElementById('diary-cover');
+    const diaryContent = document.getElementById('diary-content');
+    const saveMessage = document.getElementById('save-message');
+    const diaryInstruction = document.getElementById('diary-instruction');
+    const diaryArrow = document.getElementById('diary-arrow');
+    const selectedMood = document.getElementById('selected-mood');
+    const dailyParagraph = document.getElementById('daily-paragraph');
+    const dailyTask = document.getElementById('daily-task');
+    const dailyTaskTitle = document.getElementById('daily-task-title');
+    const graphSection = document.getElementById('graph-section');
+    const averageLabel = document.getElementById('average-label');
+    const datePicker = document.getElementById('date-picker');
+
+    const moodHistory = [];
+
+    moods.forEach((mood) => {
+      const button = document.createElement('button');
+      button.className = 'bg-gray-800 hover:bg-gray-700 transition-all w-24 h-24 rounded-2xl flex flex-col items-center justify-center shadow-md mood-button';
+      button.setAttribute('tabindex', '0');
+      button.setAttribute('aria-label', `בחר מצב רוח ${mood.label}`);
+      button.innerHTML = `<span class="text-3xl mb-2">${mood.emoji}</span><span class="text-sm text-gray-200">${mood.label}</span>`;
+      button.onclick = () => showMoodScreen(mood);
+      button.addEventListener('click', (e) => {
+        const ripple = document.createElement('span');
+        ripple.classList.add('ripple');
+        const rect = button.getBoundingClientRect();
+        const size = Math.max(rect.width, rect.height);
+        ripple.style.width = ripple.style.height = size + 'px';
+        ripple.style.left = e.clientX - rect.left - size / 2 + 'px';
+        ripple.style.top = e.clientY - rect.top - size / 2 + 'px';
+        button.appendChild(ripple);
+      });
+      button.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') showMoodScreen(mood);
+      });
+      moodGrid.appendChild(button);
+    });
+
+    function showMoodScreen(mood) {
+      homeScreen.classList.add('fade-out');
+      setTimeout(() => {
+        homeScreen.classList.add('hidden');
+        homeScreen.classList.remove('fade-out');
+        moodScreen.classList.remove('hidden');
+        moodScreen.classList.add('fade-in');
+        setTimeout(() => {
+          moodScreen.classList.remove('fade-in');
+        }, 500);
+        selectedMood.textContent = mood.label;
+        dailyParagraph.textContent = paragraphs[mood.label] || '...';
+        dailyTask.textContent = tasks[mood.label] || '...';
+        dailyTaskTitle.textContent = 'משימה יומית';
+        moodHistory.push({ mood: mood.label, score: Math.floor(Math.random() * 10) + 1, date: new Date() });
+
+        document.body.className = 'text-white flex flex-col items-center justify-center min-h-screen p-6';
+        document.body.classList.add(mood.label === "שמח" ? "happy" :
+                                   mood.label === "עצוב" ? "sad" :
+                                   mood.label === "כועס" ? "angry" :
+                                   mood.label === "רגוע" ? "calm" :
+                                   mood.label === "לחץ" ? "stressed" :
+                                   mood.label === "בדידות" ? "lonely" :
+                                   mood.label === "עייפות" ? "tired" :
+                                   mood.label === "התרגשות" ? "excited" :
+                                   mood.label === "ביטחון" ? "confident" :
+                                   mood.label === "פחד" ? "scared" : "");
+      }, 500);
+    }
+
+    function goBack() {
+      moodScreen.classList.add('fade-out');
+      setTimeout(() => {
+        moodScreen.classList.add('hidden');
+        moodScreen.classList.remove('fade-out');
+        homeScreen.classList.remove('hidden');
+        homeScreen.classList.add('fade-in');
+        setTimeout(() => {
+          homeScreen.classList.remove('fade-in');
+          selectedMood.textContent = '';
+          dailyParagraph.textContent = '';
+          dailyTask.textContent = '';
+          dailyTaskTitle.textContent = '';
+          graphSection.classList.add('hidden');
+          document.body.className = 'text-white flex flex-col items-center justify-center min-h-screen p-6';
+        }, 500);
+      }, 500);
+    }
+
+    function toggleGraph() {
+      graphSection.classList.toggle('hidden');
+      if (!graphSection.classList.contains('hidden')) {
+        setGraphRange('week');
+      }
+    }
+
+    function setGraphRange(range) {
+      const now = new Date();
+      const filtered = moodHistory.filter(entry => {
+        const diffDays = (now - new Date(entry.date)) / (1000 * 60 * 60 * 24);
+        if (range === 'week') return diffDays <= 7;
+        if (range === 'month') return diffDays <= 30;
+        return true;
+      });
+      const labels = filtered.map((e, i) => `${i + 1}`);
+      const scores = filtered.map(e => e.score);
+      const colors = filtered.map(e => moodColors[e.mood]);
+      const avg = scores.reduce((a, b) => a + b, 0) / (scores.length || 1);
+      averageLabel.textContent = `ממוצע: ${avg.toFixed(1)}`;
+
+      const ctx = document.getElementById('moodChart').getContext('2d');
+      if (window.moodChartInstance) window.moodChartInstance.destroy();
+      window.moodChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: 'רמת מצב רוח',
+            data: scores,
+            backgroundColor: colors.map(c => c.replace('#', 'rgba(') + ', 0.2)'),
+            borderColor: colors,
+            pointBackgroundColor: colors,
+            pointBorderColor: colors,
+            borderWidth: 2,
+            pointRadius: 5,
+            pointHoverRadius: 7
+          }]
+        },
+        options: {
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 10
+            }
+          },
+          plugins: {
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const index = context.dataIndex;
+                  const mood = filtered[index].mood;
+                  const score = context.parsed.y;
+                  return `${mood}: ${score}`;
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    let currentPageIndex = 0;
+    let totalPages = 365;
+    let direction = null;
+    const startDate = new Date('2025-05-26');
+
+    function updateDatePickerRange() {
+      const minDate = startDate.toISOString().split('T')[0];
+      const maxDateObj = new Date(startDate);
+      maxDateObj.setDate(maxDateObj.getDate() + totalPages - 1);
+      const maxDate = maxDateObj.toISOString().split('T')[0];
+      datePicker.setAttribute('min', minDate);
+      datePicker.setAttribute('max', maxDate);
+    }
+
+    function updateDiaryPage() {
+      const diaryDate = document.getElementById('diary-date');
+      const diaryTextarea = document.getElementById('diary-textarea');
+
+      diaryContent.classList.remove('slide-left-out', 'slide-right-out', 'slide-left-in', 'slide-right-in', 'fade-in');
+
+      if (direction === 'next') {
+        diaryContent.classList.add('slide-right-out');
+      } else if (direction === 'prev') {
+        diaryContent.classList.add('slide-left-out');
+      }
+
+      setTimeout(() => {
+        const currentDate = new Date(startDate);
+        currentDate.setDate(currentDate.getDate() + currentPageIndex);
+        const dateString = currentDate.toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\./g, '/');
+        diaryDate.textContent = dateString;
+        diaryTextarea.setAttribute('data-date', dateString);
+        diaryTextarea.setAttribute('aria-label', `כתוב את מחשבותיך עבור התאריך ${dateString}`);
+        const savedData = loadFromLocalStorage(dateString);
+        diaryTextarea.value = savedData.text || '';
+
+        const datePickerValue = currentDate.toISOString().split('T')[0];
+        datePicker.value = datePickerValue;
+
+        diaryContent.style.transform = 'translateX(0)';
+        diaryContent.style.opacity = '1';
+
+        if (direction === 'next') {
+          diaryContent.classList.add('slide-left-in');
+        } else if (direction === 'prev') {
+          diaryContent.classList.add('slide-right-in');
+        } else {
+          diaryContent.classList.add('fade-in');
+        }
+
+        updateButtons();
+      }, 500);
+    }
+
+    function navigateToDate(selectedDate) {
+      const selected = new Date(selectedDate);
+      const timeDiff = selected - startDate;
+      const daysDiff = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+      
+      if (daysDiff >= 0 && daysDiff < totalPages) {
+        direction = daysDiff > currentPageIndex ? 'next' : 'prev';
+        currentPageIndex = daysDiff;
+        updateDiaryPage();
+      } else {
+        alert('אנא בחר תאריך בטווח המותר.');
+        const currentDate = new Date(startDate);
+        currentDate.setDate(currentDate.getDate() + currentPageIndex);
+        datePicker.value = currentDate.toISOString().split('T')[0];
+      }
+    }
+
+    datePicker.addEventListener('change', (e) => {
+      navigateToDate(e.target.value);
+    });
+
+    function saveToLocalStorage(dateString, data) {
+      localStorage.setItem(`diary-${dateString}`, JSON.stringify(data));
+    }
+
+    function loadFromLocalStorage(dateString) {
+      const savedData = localStorage.getItem(`diary-${dateString}`);
+      return savedData ? JSON.parse(savedData) : { text: '' };
+    }
+
+    function updateButtons() {
+      const prevButton = document.getElementById('prev-page-btn');
+      const nextButton = document.getElementById('next-page-btn');
+      const addYearButton = document.getElementById('add-year-btn');
+      prevButton.disabled = currentPageIndex === 0;
+      nextButton.disabled = currentPageIndex >= totalPages - 1;
+      addYearButton.classList.toggle('hidden', currentPageIndex < totalPages - 1);
+    }
+
+    function prevPage() {
+      if (currentPageIndex > 0) {
+        direction = 'prev';
+        currentPageIndex--;
+        updateDiaryPage();
+      }
+    }
+
+    function nextPage() {
+      if (currentPageIndex < totalPages - 1) {
+        direction = 'next';
+        currentPageIndex++;
+        updateDiaryPage();
+      }
+    }
+
+    function addYear() {
+      totalPages += 365;
+      updateDatePickerRange();
+      nextPage();
+    }
+
+    function savePage() {
+      const diaryTextarea = document.getElementById('diary-textarea');
+      const dateString = diaryTextarea.getAttribute('data-date');
+      const newData = { text: diaryTextarea.value };
+      saveToLocalStorage(dateString, newData);
+      showSaveMessage();
+    }
+
+    function showSaveMessage() {
+      saveMessage.classList.remove('show');
+      void saveMessage.offsetWidth;
+      saveMessage.classList.add('show');
+    }
+
+    function goToDiary() {
+      homeScreen.classList.add('fade-out');
+      moodScreen.classList.add('fade-out');
+      setTimeout(() => {
+        homeScreen.classList.add('hidden');
+        moodScreen.classList.add('hidden');
+        diaryScreen.classList.remove('hidden');
+        diaryScreen.classList.add('fade-in');
+        diaryCover.classList.remove('hidden');
+        diaryCover.classList.add('closed');
+        diaryContent.style.display = 'none';
+        diaryInstruction.style.display = 'block';
+        diaryArrow.style.display = 'block';
+        updateDatePickerRange();
+        updateDiaryPage();
+        diaryCover.onclick = () => {
+          diaryCover.classList.remove('closed');
+          diaryCover.classList.add('open');
+          diaryInstruction.style.display = 'none';
+          diaryArrow.style.display = 'none';
+          setTimeout(() => {
+            diaryCover.style.display = 'none';
+            diaryContent.style.display = 'block';
+            updateDiaryPage();
+          }, 1200);
+        };
+        diaryCover.onkeypress = (e) => {
+          if (e.key === 'Enter') {
+            diaryCover.classList.remove('closed');
+            diaryCover.classList.add('open');
+            diaryInstruction.style.display = 'none';
+            diaryArrow.style.display = 'none';
+            setTimeout(() => {
+              diaryCover.style.display = 'none';
+              diaryContent.style.display = 'block';
+              updateDiaryPage();
+            }, 1200);
+          }
+        };
+      }, 500);
+    }
+
+    function goBackFromDiary() {
+      diaryScreen.classList.add('fade-out');
+      setTimeout(() => {
+        diaryScreen.classList.add('hidden');
+        homeScreen.classList.remove('hidden');
+        homeScreen.classList.add('fade-in');
+        diaryCover.classList.remove('open');
+        diaryCover.classList.add('closed');
+        diaryCover.style.display = 'block';
+        diaryInstruction.style.display = 'block';
+        diaryArrow.style.display = 'block';
+        diaryContent.style.display = 'none';
+        currentPageIndex = 0;
+        direction = null;
+        document.body.className = 'text-white flex flex-col items-center justify-center min-h-screen p-6';
+      }, 500);
+    }
+
+    const canvas = document.getElementById('particles');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const particlesArray = [];
+    const numberOfParticles = 100;
+
+    class Particle {
+      constructor() {
+        this.x = Math.random() * canvas.width;
+        this.y = Math.random() * canvas.height;
+        this.size = Math.random() * 5 + 1;
+        this.speedX = Math.random() * 1 - 0.5;
+        this.speedY = Math.random() * 1 - 0.5;
+      }
+      update() {
+        this.x += this.speedX;
+        this.y += this.speedY;
+        if (this.size > 0.2) this.size -= 0.01;
+        if (this.x < 0 || this.x > canvas.width) this.speedX *= -1;
+        if (this.y < 0 || this.y > canvas.height) this.speedY *= -1;
+      }
+      draw() {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function initParticles() {
+      for (let i = 0; i < numberOfParticles; i++) {
+        particlesArray.push(new Particle());
+      }
+    }
+
+    function animateParticles() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (let i = 0; i < particlesArray.length; i++) {
+        particlesArray[i].update();
+        particlesArray[i].draw();
+        if (particlesArray[i].size <= 0.2) {
+          particlesArray.splice(i, 1);
+          i--;
+          particlesArray.push(new Particle());
+        }
+      }
+      requestAnimationFrame(animateParticles);
+    }
+
+    initParticles();
+    animateParticles();
+
+    window.addEventListener('resize', () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    });
+
+    const paragraphs = {
+      "עצוב": `עצבות היא רגש טבעי שנוגע בעומק הלב ומסמן שאכפת לך.
+גם אם אתה מרגיש כרגע כבד ומוצף, דע שהרגש הזה זמני.
+הדרך החוצה מתחילה בהכרה ברגש ובבחירה לא להישאר לבד איתו.
+דבר עם מישהו קרוב, כתוב את מחשבותיך או פשוט אפשר לעצמך לבכות.
+כך תתחיל לאחות את הכאב.`,
+
+      "שמח": `שמחה היא מתנה יקרה של הרגע.
+תחושות של קלילות, צחוק והתלהמות הן מקור של אנרגיה מתחדשת.
+תחגוג את ההצלחות הקטנות ותהיה נוכח ביופי שסביבך.
+כשהלב שמח, גם אחרים נדבקים באור שלך.
+שתף את השמחה עם הסביבה כדי להכפיל אותה.`,
+
+      "כועס": `כעס הוא איתות פנימי שחשוב להקשיב לו.
+לפני שאתה פועל, עצור, נשום ונסה להבין מה הגבול שנחצה.
+הפנה את האנרגיה הזו לפעולה בונה, לא להרס.
+כעס שעובד נכון יכול להפוך למניע לשינוי חיובי.
+זכור שאתה בשליטה על התגובה שלך.`,
+
+      "רגוע": `רוגע הוא מקום בטוח שבו הגוף והנפש נחים.
+אם אתה מרגיש רגוע, שמור על התחושה הזו והעמק אותה.
+תן לעצמך לשהות בשקט, בטבע או במדיטציה קלה.
+רוגע עוזר לראות דברים בבהירות ולחיות באיזון.
+זוהי מתנה שכדאי לטפח.`,
+
+      "לחץ": `לחץ הוא סימן לכך שאתה מתמודד עם דרישות רבות.
+אל תתעלם ממנו, אלא נסה לנהל אותו.
+פרק את המשימות לחלקים קטנים וברורים.
+קח הפסקות יזומות, נשום עמוק ושתף אדם קרוב.
+זכור שגם זה יעבור.`,
+
+      "בדידות": `הבדידות היא חוויה אנושית אוניברסלית שיכולה לעורר תחושות קשות של ניתוק,
+אך היא בשום אופן אינה מעידה על ערכך האישי או על הפוטנציאל שלך לקשר.
+זכור עמוק בלבך שאתה ראוי לקשרים משמעותיים, לחום ולאהבה,
+וקיימים אנשים בעולם שיעריכו ויקבלו אותך כפי שאתה.
+לעיתים קרובות נדרשת יוזמה קלה כדי ליצור גשר של תקשורת,
+אך פתיחות קטנה וצעד ראשון יכולים להוביל למפגשים עמוקים ומחממים את הלב.
+זכור תמיד שאתה חלק בלתי נפרד מהרקמה האנושית העשירה ואינך באמת לבד בעולם הזה.`,
+
+      "עייפות": `העייפות היא מסר חשוב מהגוף והנפש שלך, המאותת על צורך חיוני במנוחה והתחדשות.
+אל תתעלם מהתחושה הזו ואל תנסה לדחוף את עצמך מעבר ליכולתך;
+הרשה לעצמך להאט את הקצב המטורף, להקשיב בתשומת לב לצרכים הפנימיים שלך
+ולתת לעצמך את המרחב והזמן הנדרשים להתאוששות מלאה.
+זכור היטב שטיפול בעצמך אינו פינוק או אנוכיות,
+אלא השקעה חכמה ובסיסית בבריאותך הפיזית והנפשית.
+אפשר לעצמך רגעים של שקט, נעימות וטעינה מחדש של האנרגיות.`,
+
+      "התרגשות": `ההתרגשות היא ניצוץ של שמחה וציפייה שממלא את הווייתך באנרגיה חיובית.
+תן לעצמך לחוות את התחושה הזו במלואה, אפשר לה להניע אותך קדימה ולעורר בך השראה ליצור ולפעול.
+זכור שהיכולת להתרגש היא סימן לחיים מלאים ולפתיחות לחוויות חדשות ומרגשות.
+אל תהסס לחלוק את ההתלהבות שלך עם אחרים כדי להגביר אותה.`,
+
+      "ביטחון": `הביטחון העצמי הוא תחושה יציבה של אמונה בערכך וביכולותיך.
+חזק את התחושה הזו על ידי הכרה בהישגים הקטנים והגדולים שלך ובהכרה בחוזקות הייחודיות שלך.
+זכור שאתה בעל ערך וכישרונות, וביכולתך להתמודד עם אתגרים.
+טפח את האמונה הפנימית הזו, והיא תהיה בסיס איתן להתקדמות.`,
+
+      "פחד": `הפחד הוא מנגנון הישרדותי בסיסי, אך לעיתים הוא יכול להיות מוגזם או לא רציונלי.
+זה טבעי להרגיש פחד מול הלא נודע, אך נסה להתבונן בו בעין בוחנת ולשאול את עצמך עד כמה הוא מבוסס במציאות.
+זכור שצמיחה אמיתית מתרחשת לעיתים קרובות מחוץ לאזור הנוחות שלנו.
+נסה לעשות צעדים קטנים מול הפחדים שלך, ותגלה את הכוח הטמון בך.`
+    };
+
+    const tasks = {
+      "עצוב": `הקדש לעצמך עשר דקות לכתיבה אישית.
+נסה לבטא את מה שאתה מרגיש ללא סינון.
+זה יכול לעזור להבהיר את התחושות ולהקל על העומס הפנימי.`,
+
+      "שמח": `שתף אדם אחד ביום במה ששימח אותך.
+זו יכולה להיות הודעה, שיחה קצרה או אפילו תמונה.
+כך תחזק גם את הקשר וגם את תחושת השמחה.`,
+
+      "כועס": `בפעם הבאה שאתה כועס,
+נסה לספור עד עשר ולזהות מילה אחת שמתארת את הצורך שלך.
+לאחר מכן, נסח משפט שמביע את הרגש והצורך הזה.`,
+
+      "רגוע": `מצא פינה שקטה במשך עשר דקות,
+עצום עיניים ונשום עמוק.
+שמור על תשומת לב רק לנשימה ולתחושות בגוף.`,
+
+      "לחץ": `בחר משימה אחת בלבד שאתה חייב לעשות היום.
+רשום אותה, חלק אותה לשלבים ובצע שלב אחד בכל פעם.
+בסוף, הענק לעצמך מחמאה.`,
+
+      "בדידות": `במהלך היום, גלה יוזמה קטנה ליצור קשר עם אדם אחד שחשוב לך.
+זה יכול להיות שליחת הודעה קצרה, התקשרות ספונטנית או תכנון פגישה קטנה בעתיד הקרוב.`,
+
+      "עייפות": `במהלך היום, הקצה לעצמך לפחות חצי שעה לפעילות מרגיעה ונעימה שתעזור לך להתחדש.
+זה יכול להיות שינה קצרה, האזנה למוזיקה רגועה, קריאת כמה פרקים בספר אהוב או פשוט רביצה נינוחה.`,
+
+      "התרגשות": `במהלך היום, תכנן או עשה משהו קטן שמעורר בך תחושת התרגשות וציפייה.
+זה יכול להיות פגישה עם חבר, תחילת פרויקט חדש, או צפייה בסרט מעניין.`,
+
+      "ביטחון": `במהלך היום, הקדש רגע לחשוב על דבר אחד שאתה גאה בו בעצמך.
+רשום זאת או פשוט תן לעצמך הכרה פנימית על כך.`,
+
+      "פחד": `במהלך היום, זהה פחד קטן שמגביל אותך ונסה לעשות צעד קטן להתמודדות איתו.
+זה יכול להיות מחשבה חיובית או פעולה קטנה.`
+    };
+  </script>
+</body>
+</html>
